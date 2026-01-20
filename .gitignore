@@ -1,4 +1,41 @@
+# Dependencies
 node_modules
+.pnpm-store
+
+# Next.js
 .next
-data.db
+out
+
+# Database
 *.db
+data.db
+
+# Downloads (temporary files)
+downloads/
+
+# Environment
+.env
+.env.local
+.env.production
+.env.development
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# Misc
+.claude
