@@ -16,6 +16,7 @@ export default function DownloadPage() {
   const [error, setError] = useState('');
   const [downloading, setDownloading] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [zipping, setZipping] = useState(false);
 
   useEffect(() => {
     const fetchLinks = async () => {
@@ -92,6 +93,22 @@ export default function DownloadPage() {
     setDownloading(false);
   };
 
+  const downloadZip = () => {
+    setZipping(true);
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = `/api/zip/${params.id}`;
+    document.body.appendChild(iframe);
+
+    // Temizlik
+    setTimeout(() => {
+      if (iframe.parentNode) {
+        document.body.removeChild(iframe);
+      }
+      setZipping(false);
+    }, 120000); // 2 dakika
+  };
+
   if (loading) {
     return (
       <div style={{ padding: '40px 20px', textAlign: 'center' }}>
@@ -123,26 +140,45 @@ export default function DownloadPage() {
         {downloadedCount} / {videos.length} indirildi
       </p>
 
-      <button
-        onClick={downloadAll}
-        disabled={downloading}
-        style={{
-          width: '100%',
-          padding: '16px',
-          backgroundColor: downloading ? '#333' : '#0f0',
-          color: '#000',
-          border: 'none',
-          borderRadius: '12px',
-          fontSize: '18px',
-          fontWeight: '700',
-          cursor: downloading ? 'wait' : 'pointer',
-          marginBottom: '24px',
-        }}
-      >
-        {downloading
-          ? `İndiriliyor... (${currentIndex + 1}/${videos.length})`
-          : 'Hepsini İndir'}
-      </button>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+        <button
+          onClick={downloadAll}
+          disabled={downloading || zipping}
+          style={{
+            flex: 1,
+            padding: '16px',
+            backgroundColor: downloading ? '#333' : '#0f0',
+            color: '#000',
+            border: 'none',
+            borderRadius: '12px',
+            fontSize: '16px',
+            fontWeight: '700',
+            cursor: downloading ? 'wait' : 'pointer',
+          }}
+        >
+          {downloading
+            ? `${currentIndex + 1}/${videos.length}`
+            : 'Tek Tek İndir'}
+        </button>
+
+        <button
+          onClick={downloadZip}
+          disabled={downloading || zipping}
+          style={{
+            flex: 1,
+            padding: '16px',
+            backgroundColor: zipping ? '#333' : '#0070f3',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '12px',
+            fontSize: '16px',
+            fontWeight: '700',
+            cursor: zipping ? 'wait' : 'pointer',
+          }}
+        >
+          {zipping ? 'Hazırlanıyor...' : 'ZIP İndir'}
+        </button>
+      </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {videos.map((video, index) => (

@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "archiver": "^7.0.0",
     "nanoid": "^5.0.7",
     "next": "16.0.10",
     "react": "^19.0.0",
@@ -15,6 +16,7 @@
     "sql.js": "^1.11.0"
   },
   "devDependencies": {
+    "@types/archiver": "^6.0.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/sql.js": "^1.4.9",
