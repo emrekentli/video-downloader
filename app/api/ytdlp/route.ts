@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     // Video bilgilerini al
     if (action === 'info') {
       const { stdout } = await execAsync(
-        `yt-dlp --dump-json "${url}"`,
+        `yt-dlp --dump-json --extractor-args "youtube:player_client=android,web" "${url}"`,
         { maxBuffer: 10 * 1024 * 1024, timeout: 60000 }
       );
       const info = JSON.parse(stdout);
@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
 
     console.log('Downloading:', url);
 
-    // yt-dlp ile indir
+    // yt-dlp ile indir - YouTube bot korumasını atlamak için farklı client kullan
     const { stdout, stderr } = await execAsync(
-      `yt-dlp -f "best[ext=mp4]/best" -o "${outputTemplate}" --no-warnings --print filename "${url}"`,
+      `yt-dlp -f "best[ext=mp4]/best" -o "${outputTemplate}" --no-warnings --print filename --extractor-args "youtube:player_client=android,web" "${url}"`,
       { maxBuffer: 50 * 1024 * 1024, timeout: 300000 } // 5 dakika timeout
     );
 
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     let originalName = 'video.mp4';
     try {
       const { stdout: titleOut } = await execAsync(
-        `yt-dlp --get-filename -o "%(title)s.%(ext)s" --no-warnings "${url}"`,
+        `yt-dlp --get-filename -o "%(title)s.%(ext)s" --no-warnings --extractor-args "youtube:player_client=android,web" "${url}"`,
         { maxBuffer: 1024 * 1024, timeout: 30000 }
       );
       originalName = titleOut.trim().replace(/[<>:"/\\|?*]/g, '_') || 'video.mp4';
