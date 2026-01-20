@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { existsSync, mkdirSync } from 'fs';
+import path from 'path';
+import { nanoid } from 'nanoid';
 
 const execAsync = promisify(exec);
+
+const DOWNLOADS_DIR = process.env.DOWNLOADS_DIR || path.join(process.cwd(), 'downloads');
+
+// Downloads klasörünü oluştur
+if (!existsSync(DOWNLOADS_DIR)) {
+  mkdirSync(DOWNLOADS_DIR, { recursive: true });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,72 +33,57 @@ export async function POST(request: NextRequest) {
         title: info.title,
         duration: info.duration,
         thumbnail: info.thumbnail,
-        formats: info.formats?.slice(0, 10).map((f: any) => ({
-          format_id: f.format_id,
-          ext: f.ext,
-          resolution: f.resolution || `${f.width}x${f.height}`,
-          filesize: f.filesize,
-        })),
       });
     }
 
-    // Doğrudan indirme URL'si al - farklı format seçenekleri dene
-    const formatOptions = [
-      'best[ext=mp4]/best',
-      'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best',
-      'best'
-    ];
+    // Videoyu sunucuya indir
+    const fileId = nanoid(12);
+    const outputTemplate = path.join(DOWNLOADS_DIR, `${fileId}.%(ext)s`);
 
-    let directUrl = '';
-    let lastError = '';
+    console.log('Downloading:', url);
 
-    for (const format of formatOptions) {
-      try {
-        const { stdout } = await execAsync(
-          `yt-dlp -f "${format}" -g --no-warnings "${url}"`,
-          { maxBuffer: 1024 * 1024, timeout: 60000 }
-        );
-        directUrl = stdout.trim().split('\n')[0];
-        if (directUrl && directUrl.startsWith('http')) {
-          break;
-        }
-      } catch (err: any) {
-        lastError = err.message;
-        continue;
-      }
-    }
+    // yt-dlp ile indir
+    const { stdout, stderr } = await execAsync(
+      `yt-dlp -f "best[ext=mp4]/best" -o "${outputTemplate}" --no-warnings --print filename "${url}"`,
+      { maxBuffer: 50 * 1024 * 1024, timeout: 300000 } // 5 dakika timeout
+    );
 
-    if (!directUrl || !directUrl.startsWith('http')) {
+    const filename = stdout.trim().split('\n').pop() || '';
+
+    if (!filename || !existsSync(filename)) {
+      console.error('Download failed:', stderr);
       return NextResponse.json(
-        { error: `Video URL alınamadı: ${lastError}` },
+        { error: 'Video indirilemedi' },
         { status: 500 }
       );
     }
 
-    // Dosya adını al
-    let filename = 'video.mp4';
+    // Orijinal dosya adını al
+    let originalName = 'video.mp4';
     try {
       const { stdout: titleOut } = await execAsync(
         `yt-dlp --get-filename -o "%(title)s.%(ext)s" --no-warnings "${url}"`,
         { maxBuffer: 1024 * 1024, timeout: 30000 }
       );
-      filename = titleOut.trim().replace(/[<>:"/\\|?*]/g, '_') || 'video.mp4';
+      originalName = titleOut.trim().replace(/[<>:"/\\|?*]/g, '_') || 'video.mp4';
     } catch {
-      // Dosya adı alınamazsa varsayılanı kullan
+      // Varsayılanı kullan
     }
 
+    const savedFilename = path.basename(filename);
+
     return NextResponse.json({
-      directUrl,
-      filename,
+      fileId: savedFilename,
+      filename: originalName,
+      downloadUrl: `/api/serve/${savedFilename}`,
       originalUrl: url
     });
   } catch (error: any) {
     console.error('yt-dlp error:', error);
 
-    // yt-dlp kurulu değilse özel mesaj
     if (error.message?.includes('not found') || error.message?.includes('ENOENT')) {
       return NextResponse.json(
-        { error: 'yt-dlp kurulu değil. Docker ortamında çalıştırın.' },
+        { error: 'yt-dlp kurulu değil' },
         { status: 500 }
       );
     }

@@ -49,18 +49,29 @@ export default function DownloadPage() {
 
   const downloadSingle = (index: number) => {
     const video = videos[index];
-    const proxyUrl = `/api/download?url=${encodeURIComponent(video.url)}&filename=${encodeURIComponent(video.filename)}`;
+
+    // URL'yi belirle - sunucu dosyası mı yoksa dış link mi?
+    let downloadUrl: string;
+    if (video.url.startsWith('/api/serve/')) {
+      // Sunucuda indirilen dosya - filename parametresi ekle
+      downloadUrl = `${video.url}?name=${encodeURIComponent(video.filename)}`;
+    } else {
+      // Dış link - proxy kullan
+      downloadUrl = `/api/download?url=${encodeURIComponent(video.url)}&filename=${encodeURIComponent(video.filename)}`;
+    }
 
     // Hidden iframe ile indirme başlat (iOS uyumlu)
     const iframe = document.createElement('iframe');
     iframe.style.display = 'none';
-    iframe.src = proxyUrl;
+    iframe.src = downloadUrl;
     document.body.appendChild(iframe);
 
-    // Temizlik için 30 saniye sonra iframe'i kaldır
+    // Temizlik için 60 saniye sonra iframe'i kaldır
     setTimeout(() => {
-      document.body.removeChild(iframe);
-    }, 30000);
+      if (iframe.parentNode) {
+        document.body.removeChild(iframe);
+      }
+    }, 60000);
 
     setVideos(prev => prev.map((v, i) =>
       i === index ? { ...v, downloaded: true } : v

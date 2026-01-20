@@ -52,7 +52,7 @@ export default function Home() {
             if (res.ok) {
               const data = await res.json();
               resolvedLinks.push({
-                url: data.directUrl,
+                url: data.downloadUrl, // Sunucudan serve edilecek
                 filename: data.filename
               });
             } else {

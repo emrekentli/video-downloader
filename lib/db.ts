@@ -58,3 +58,26 @@ export async function getCollection(id: string): Promise<VideoItem[] | null> {
 
   return JSON.parse(result[0].values[0][0] as string);
 }
+
+export async function deleteOldCollections(maxAgeMs: number): Promise<number> {
+  const database = await getDb();
+  const maxAgeSeconds = Math.floor(maxAgeMs / 1000);
+
+  // SQLite'da datetime karşılaştırması
+  database.run(
+    `DELETE FROM collections WHERE created_at < datetime('now', '-' || ? || ' seconds')`,
+    [maxAgeSeconds]
+  );
+
+  saveDb();
+
+  // Silinen satır sayısını al
+  const result = database.exec('SELECT changes()');
+  const deleted = result[0]?.values[0]?.[0] as number || 0;
+
+  if (deleted > 0) {
+    console.log(`Deleted ${deleted} old collections`);
+  }
+
+  return deleted;
+}
