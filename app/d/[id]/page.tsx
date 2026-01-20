@@ -50,24 +50,13 @@ export default function DownloadPage() {
 
   const downloadSingle = (index: number) => {
     const video = videos[index];
+    const downloadUrl = `/api/download?url=${encodeURIComponent(video.url)}&filename=${encodeURIComponent(video.filename)}`;
 
-    // URL'yi belirle - sunucu dosyası mı yoksa dış link mi?
-    let downloadUrl: string;
-    if (video.url.startsWith('/api/serve/')) {
-      // Sunucuda indirilen dosya - filename parametresi ekle
-      downloadUrl = `${video.url}?name=${encodeURIComponent(video.filename)}`;
-    } else {
-      // Dış link - proxy kullan
-      downloadUrl = `/api/download?url=${encodeURIComponent(video.url)}&filename=${encodeURIComponent(video.filename)}`;
-    }
-
-    // Hidden iframe ile indirme başlat (iOS uyumlu)
     const iframe = document.createElement('iframe');
     iframe.style.display = 'none';
     iframe.src = downloadUrl;
     document.body.appendChild(iframe);
 
-    // Temizlik için 60 saniye sonra iframe'i kaldır
     setTimeout(() => {
       if (iframe.parentNode) {
         document.body.removeChild(iframe);
@@ -86,7 +75,6 @@ export default function DownloadPage() {
     for (let i = 0; i < videos.length; i++) {
       setCurrentIndex(i);
       downloadSingle(i);
-      // iOS'ta ardışık indirmeler için kısa bekleme
       await new Promise(resolve => setTimeout(resolve, 800));
     }
 
@@ -100,13 +88,12 @@ export default function DownloadPage() {
     iframe.src = `/api/zip/${params.id}`;
     document.body.appendChild(iframe);
 
-    // Temizlik
     setTimeout(() => {
       if (iframe.parentNode) {
         document.body.removeChild(iframe);
       }
       setZipping(false);
-    }, 120000); // 2 dakika
+    }, 120000);
   };
 
   if (loading) {
