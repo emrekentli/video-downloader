@@ -23,12 +23,13 @@ RUN pip3 install --break-system-packages yt-dlp
 
 ENV NODE_ENV=production
 ENV DATABASE_PATH=/app/data/data.db
+ENV DOWNLOADS_DIR=/app/downloads
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Create data directory
-RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
+# Create data and downloads directories
+RUN mkdir -p /app/data /app/downloads && chown -R nextjs:nodejs /app/data /app/downloads
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
