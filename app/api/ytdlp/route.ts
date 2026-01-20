@@ -84,6 +84,15 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('yt-dlp error:', error);
+
+    // yt-dlp kurulu değilse özel mesaj
+    if (error.message?.includes('not found') || error.message?.includes('ENOENT')) {
+      return NextResponse.json(
+        { error: 'yt-dlp kurulu değil. Docker ortamında çalıştırın.' },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
       { error: error.message || 'yt-dlp hatası' },
       { status: 500 }

@@ -56,10 +56,21 @@ export default function Home() {
                 filename: data.filename
               });
             } else {
-              console.error('yt-dlp failed for:', link);
+              const errData = await res.json().catch(() => ({}));
+              console.error('yt-dlp failed for:', link, errData.error);
+              // yt-dlp başarısız olursa linki olduğu gibi ekle (belki çalışır)
+              resolvedLinks.push({
+                url: link,
+                filename: `video_${i + 1}.mp4`
+              });
             }
           } catch (err) {
             console.error('yt-dlp error:', err);
+            // Hata durumunda da linki ekle
+            resolvedLinks.push({
+              url: link,
+              filename: `video_${i + 1}.mp4`
+            });
           }
         } else {
           // Doğrudan link
