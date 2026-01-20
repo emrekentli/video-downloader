@@ -8,15 +8,16 @@
     "start": "next start"
   },
   "dependencies": {
+    "nanoid": "^5.0.7",
     "next": "16.0.10",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "sql.js": "^1.11.0",
-    "nanoid": "^5.0.7"
+    "sql.js": "^1.11.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
+    "@types/sql.js": "^1.4.9",
     "typescript": "^5.7.0"
   }
 }
