@@ -7,13 +7,13 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const links = await getCollection(id);
+    const items = await getCollection(id);
 
-    if (!links) {
+    if (!items) {
       return NextResponse.json({ error: 'Koleksiyon bulunamadı' }, { status: 404 });
     }
 
-    return NextResponse.json({ links });
+    return NextResponse.json({ items });
   } catch (error) {
     console.error('Get collection error:', error);
     return NextResponse.json({ error: 'Bir hata oluştu' }, { status: 500 });

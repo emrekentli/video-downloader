@@ -37,13 +37,18 @@ function saveDb() {
   fs.writeFileSync(dbPath, buffer);
 }
 
-export async function createCollection(id: string, links: string[]): Promise<void> {
+interface VideoItem {
+  url: string;
+  filename: string;
+}
+
+export async function createCollection(id: string, items: VideoItem[]): Promise<void> {
   const database = await getDb();
-  database.run('INSERT INTO collections (id, links) VALUES (?, ?)', [id, JSON.stringify(links)]);
+  database.run('INSERT INTO collections (id, links) VALUES (?, ?)', [id, JSON.stringify(items)]);
   saveDb();
 }
 
-export async function getCollection(id: string): Promise<string[] | null> {
+export async function getCollection(id: string): Promise<VideoItem[] | null> {
   const database = await getDb();
   const result = database.exec('SELECT links FROM collections WHERE id = ?', [id]);
 

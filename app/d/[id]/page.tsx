@@ -28,11 +28,11 @@ export default function DownloadPage() {
           return;
         }
 
-        const items: VideoItem[] = data.links.map((url: string, index: number) => {
-          const urlObj = new URL(url);
-          const filename = urlObj.pathname.split('/').pop() || `video_${index + 1}.mp4`;
-          return { url, filename, downloaded: false };
-        });
+        const items: VideoItem[] = data.items.map((item: { url: string; filename: string }) => ({
+          url: item.url,
+          filename: item.filename,
+          downloaded: false
+        }));
 
         setVideos(items);
       } catch (err) {

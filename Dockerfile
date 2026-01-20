@@ -1,7 +1,8 @@
 FROM node:20-alpine AS base
 
-# Install dependencies for better-sqlite3
-RUN apk add --no-cache python3 make g++
+# yt-dlp ve ffmpeg kurulumu
+RUN apk add --no-cache python3 py3-pip ffmpeg
+RUN pip3 install --break-system-packages yt-dlp
 
 FROM base AS deps
 WORKDIR /app
@@ -17,14 +18,18 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 
+# yt-dlp ve ffmpeg'i runner'a da kur
+RUN apk add --no-cache python3 py3-pip ffmpeg
+RUN pip3 install --break-system-packages yt-dlp
+
 ENV NODE_ENV=production
 ENV DATABASE_PATH=/app/data/data.db
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Create data directory for SQLite
-RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
+# Create data directory for SQLite and downloads
+RUN mkdir -p /app/data /app/downloads && chown -R nextjs:nodejs /app/data /app/downloads
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
