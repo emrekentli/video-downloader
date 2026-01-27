@@ -11,8 +11,7 @@ out
 data.db
 
 # Downloads (temporary zip files)
-downloads/
-public/downloads/
+public/downloads/*.zip
 
 # Environment
 .env
