@@ -10,8 +10,9 @@ out
 *.db
 data.db
 
-# Downloads (temporary files)
+# Downloads (temporary zip files)
 downloads/
+public/downloads/
 
 # Environment
 .env

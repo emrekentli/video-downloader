@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getCollection } from '@/lib/db';
-import { createTempPath, getFileIdFromPath, cleanupTempFiles } from '@/lib/temp';
+import { createZipPath, getZipUrl, cleanupOldZips } from '@/lib/zip-storage';
 import archiver from 'archiver';
 import fs from 'fs';
 
@@ -26,8 +26,8 @@ export async function GET(
     );
   }
 
-  // Eski temp dosyaları temizle
-  cleanupTempFiles();
+  // Eski zip'leri temizle
+  cleanupOldZips();
 
   const encoder = new TextEncoder();
   const total = items.length;
@@ -38,18 +38,16 @@ export async function GET(
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
       };
 
-      // Başlangıç
       sendEvent({ type: 'start', total });
 
-      // Temp dosya oluştur
-      const tempPath = createTempPath(`videos_${id}`);
-      const output = fs.createWriteStream(tempPath);
-
-      // Archive oluştur - doğrudan dosyaya yaz
+      // Zip dosyası oluştur
+      const { filePath, fileId } = createZipPath(id);
+      const output = fs.createWriteStream(filePath);
       const archive = archiver('zip', { zlib: { level: 5 } });
+
       archive.pipe(output);
 
-      // Her videoyu indir ve stream olarak zip'e ekle
+      // Videoları indir ve zip'e ekle
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         sendEvent({
@@ -67,7 +65,6 @@ export async function GET(
             const baseName = item.filename.replace(/\.[^/.]+$/, '');
             const fileName = `${String(i + 1).padStart(2, '0')}_${baseName}.${ext}`;
 
-            // Readable stream'i direkt archive'a ver - memory'de tutmadan
             const { Readable } = await import('stream');
             const nodeStream = Readable.fromWeb(response.body as any);
 
@@ -105,22 +102,20 @@ export async function GET(
 
       sendEvent({ type: 'progress', current: total, total, phase: 'finalizing' });
 
-      // Archive'ı finalize et ve dosyaya yazılmasını bekle
+      // Archive'ı bitir
       await new Promise<void>((resolve, reject) => {
         output.on('close', resolve);
         output.on('error', reject);
         archive.finalize();
       });
 
-      // Download URL'i gönder
-      const fileId = getFileIdFromPath(tempPath);
-      const fileExists = fs.existsSync(tempPath);
-      const fileSize = fileExists ? fs.statSync(tempPath).size : 0;
-      console.log(`[zip-progress] Zip created: ${tempPath}, exists: ${fileExists}, size: ${fileSize}`);
+      // Static URL ver
+      const downloadUrl = getZipUrl(fileId);
+      console.log(`[zip] Created: ${filePath}, URL: ${downloadUrl}`);
 
       sendEvent({
         type: 'complete',
-        downloadUrl: `/api/zip-download/${fileId}`,
+        downloadUrl,
         filename: `videos_${id}.zip`
       });
 

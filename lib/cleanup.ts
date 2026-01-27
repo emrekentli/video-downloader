@@ -1,12 +1,12 @@
 import { deleteOldCollections } from './db';
-import { cleanupTempFiles } from './temp';
+import { cleanupOldZips } from './zip-storage';
 
 const MAX_AGE_MS = 60 * 60 * 1000; // 1 saat
 
 export async function cleanupOldData() {
   try {
     await deleteOldCollections(MAX_AGE_MS);
-    cleanupTempFiles();
+    cleanupOldZips();
   } catch (err) {
     console.error('Cleanup error:', err);
   }
