@@ -67,18 +67,15 @@ export async function GET(
             const baseName = item.filename.replace(/\.[^/.]+$/, '');
             const fileName = `${String(i + 1).padStart(2, '0')}_${baseName}.${ext}`;
 
-            // Stream olarak oku ve zip'e ekle - memory'de tutma
-            const reader = response.body.getReader();
-            const chunks: Uint8Array[] = [];
+            // Readable stream'i direkt archive'a ver - memory'de tutmadan
+            const { Readable } = await import('stream');
+            const nodeStream = Readable.fromWeb(response.body as any);
 
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              chunks.push(value);
-            }
-
-            const buffer = Buffer.concat(chunks);
-            archive.append(buffer, { name: fileName });
+            await new Promise<void>((resolve, reject) => {
+              nodeStream.on('end', resolve);
+              nodeStream.on('error', reject);
+              archive.append(nodeStream, { name: fileName });
+            });
 
             sendEvent({
               type: 'progress',
