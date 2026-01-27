@@ -17,6 +17,7 @@ export default function DownloadPage() {
   const [downloading, setDownloading] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [zipping, setZipping] = useState(false);
+  const [zipProgress, setZipProgress] = useState({ current: 0, total: 0, phase: '' });
 
   useEffect(() => {
     const fetchLinks = async () => {
@@ -83,17 +84,55 @@ export default function DownloadPage() {
 
   const downloadZip = () => {
     setZipping(true);
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = `/api/zip/${params.id}`;
-    document.body.appendChild(iframe);
+    setZipProgress({ current: 0, total: 0, phase: 'starting' });
 
-    setTimeout(() => {
-      if (iframe.parentNode) {
-        document.body.removeChild(iframe);
+    const eventSource = new EventSource(`/api/zip-progress/${params.id}`);
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === 'start') {
+        setZipProgress({ current: 0, total: data.total, phase: 'starting' });
+      } else if (data.type === 'progress') {
+        setZipProgress({
+          current: data.current,
+          total: data.total,
+          phase: data.phase || 'downloading'
+        });
+      } else if (data.type === 'complete') {
+        // Base64'ü blob'a çevir ve indir
+        const byteCharacters = atob(data.zipBase64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/zip' });
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = data.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        eventSource.close();
+        setZipping(false);
+        setZipProgress({ current: 0, total: 0, phase: '' });
+      } else if (data.type === 'error') {
+        alert(data.message);
+        eventSource.close();
+        setZipping(false);
       }
+    };
+
+    eventSource.onerror = () => {
+      eventSource.close();
       setZipping(false);
-    }, 120000);
+      setZipProgress({ current: 0, total: 0, phase: '' });
+    };
   };
 
   if (loading) {
@@ -163,7 +202,11 @@ export default function DownloadPage() {
             cursor: zipping ? 'wait' : 'pointer',
           }}
         >
-          {zipping ? 'Hazırlanıyor...' : 'ZIP İndir'}
+          {zipping
+            ? zipProgress.total > 0
+              ? `${zipProgress.current}/${zipProgress.total} ${zipProgress.phase === 'finalizing' ? '(Sıkıştırılıyor)' : ''}`
+              : 'Başlıyor...'
+            : 'ZIP İndir'}
         </button>
       </div>
 
