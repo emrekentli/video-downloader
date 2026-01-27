@@ -100,23 +100,13 @@ export default function DownloadPage() {
           phase: data.phase || 'downloading'
         });
       } else if (data.type === 'complete') {
-        // Base64'ü blob'a çevir ve indir
-        const byteCharacters = atob(data.zipBase64);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: 'application/zip' });
-
-        const url = URL.createObjectURL(blob);
+        // Download URL'i ile indir
         const a = document.createElement('a');
-        a.href = url;
+        a.href = data.downloadUrl;
         a.download = data.filename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
 
         eventSource.close();
         setZipping(false);

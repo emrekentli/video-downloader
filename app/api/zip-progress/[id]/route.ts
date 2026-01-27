@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
 import { getCollection } from '@/lib/db';
+import { createTempPath, getFileIdFromPath, cleanupTempFiles } from '@/lib/temp';
 import archiver from 'archiver';
-import { PassThrough } from 'stream';
+import fs from 'fs';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,9 @@ export async function GET(
     );
   }
 
+  // Eski temp dosyaları temizle
+  cleanupTempFiles();
+
   const encoder = new TextEncoder();
   const total = items.length;
 
@@ -37,16 +41,15 @@ export async function GET(
       // Başlangıç
       sendEvent({ type: 'start', total });
 
-      // Archive oluştur
+      // Temp dosya oluştur
+      const tempPath = createTempPath(`videos_${id}`);
+      const output = fs.createWriteStream(tempPath);
+
+      // Archive oluştur - doğrudan dosyaya yaz
       const archive = archiver('zip', { zlib: { level: 5 } });
-      const chunks: Buffer[] = [];
-      const passThrough = new PassThrough();
+      archive.pipe(output);
 
-      passThrough.on('data', (chunk) => chunks.push(chunk));
-
-      archive.pipe(passThrough);
-
-      // Her videoyu indir
+      // Her videoyu indir ve stream olarak zip'e ekle
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         sendEvent({
@@ -64,8 +67,18 @@ export async function GET(
             const baseName = item.filename.replace(/\.[^/.]+$/, '');
             const fileName = `${String(i + 1).padStart(2, '0')}_${baseName}.${ext}`;
 
-            const buffer = await response.arrayBuffer();
-            archive.append(Buffer.from(buffer), { name: fileName });
+            // Stream olarak oku ve zip'e ekle - memory'de tutma
+            const reader = response.body.getReader();
+            const chunks: Uint8Array[] = [];
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+            }
+
+            const buffer = Buffer.concat(chunks);
+            archive.append(buffer, { name: fileName });
 
             sendEvent({
               type: 'progress',
@@ -87,20 +100,18 @@ export async function GET(
 
       sendEvent({ type: 'progress', current: total, total, phase: 'finalizing' });
 
-      // Archive'ı finalize et
+      // Archive'ı finalize et ve dosyaya yazılmasını bekle
       await new Promise<void>((resolve, reject) => {
-        passThrough.on('finish', resolve);
-        passThrough.on('error', reject);
+        output.on('close', resolve);
+        output.on('error', reject);
         archive.finalize();
       });
 
-      // Zip'i base64 olarak gönder
-      const zipBuffer = Buffer.concat(chunks);
-      const base64 = zipBuffer.toString('base64');
-
+      // Download URL'i gönder
+      const fileId = getFileIdFromPath(tempPath);
       sendEvent({
         type: 'complete',
-        zipBase64: base64,
+        downloadUrl: `/api/zip-download/${fileId}`,
         filename: `videos_${id}.zip`
       });
 
