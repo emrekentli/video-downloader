@@ -20,30 +20,16 @@ export async function GET(
   }
 
   try {
-    const stats = fs.statSync(filePath);
-    const fileStream = fs.createReadStream(filePath);
+    // Dosyayı oku ve gönder
+    const buffer = fs.readFileSync(filePath);
 
-    // Stream'i ReadableStream'e dönüştür
-    const readable = new ReadableStream({
-      start(controller) {
-        fileStream.on('data', (chunk) => {
-          controller.enqueue(chunk);
-        });
-        fileStream.on('end', () => {
-          controller.close();
-          // İndirme tamamlandıktan sonra dosyayı sil
-          deleteTempFile(fileId);
-        });
-        fileStream.on('error', (err) => {
-          controller.error(err);
-        });
-      },
-    });
+    // Gönderildikten sonra sil
+    deleteTempFile(fileId);
 
-    return new NextResponse(readable, {
+    return new NextResponse(buffer, {
       headers: {
         'Content-Type': 'application/zip',
-        'Content-Length': stats.size.toString(),
+        'Content-Length': buffer.length.toString(),
         'Content-Disposition': `attachment; filename="${fileId}.zip"`,
         'Alt-Svc': 'clear',
         'Cache-Control': 'no-store',
