@@ -21,6 +21,13 @@ export default function DownloadPage() {
   const [zipReady, setZipReady] = useState<{ url: string; filename: string } | null>(null);
 
   useEffect(() => {
+    // URL'den zip parametresini kontrol et
+    const urlParams = new URLSearchParams(window.location.search);
+    const zipUrl = urlParams.get('zip');
+    if (zipUrl) {
+      setZipReady({ url: zipUrl, filename: `videos_${params.id}.zip` });
+    }
+
     const fetchLinks = async () => {
       try {
         const res = await fetch(`/api/collection/${params.id}`);
@@ -105,6 +112,19 @@ export default function DownloadPage() {
         setZipping(false);
         setZipProgress({ current: 0, total: 0, phase: '' });
         setZipReady({ url: data.downloadUrl, filename: data.filename });
+
+        // URL'e zip parametresi ekle (paylaşılabilir)
+        const url = new URL(window.location.href);
+        url.searchParams.set('zip', data.downloadUrl);
+        window.history.replaceState({}, '', url.toString());
+
+        // 9 dakika sonra butonu sıfırla (temp dosya 10 dk'da silinir)
+        setTimeout(() => {
+          setZipReady(null);
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete('zip');
+          window.history.replaceState({}, '', cleanUrl.toString());
+        }, 9 * 60 * 1000);
       } else if (data.type === 'error') {
         alert(data.message);
         eventSource.close();

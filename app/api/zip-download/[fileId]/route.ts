@@ -45,6 +45,8 @@ export async function GET(
         'Content-Type': 'application/zip',
         'Content-Length': stats.size.toString(),
         'Content-Disposition': `attachment; filename="${fileId}.zip"`,
+        'Alt-Svc': 'clear',
+        'Cache-Control': 'no-store',
       },
     });
   } catch (error) {
