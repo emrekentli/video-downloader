@@ -19,6 +19,7 @@ export default function DownloadPage() {
   const [zipping, setZipping] = useState(false);
   const [zipProgress, setZipProgress] = useState({ current: 0, total: 0, phase: '' });
   const [zipReady, setZipReady] = useState<{ url: string; filename: string } | null>(null);
+  const [zipParts, setZipParts] = useState<{ partNumber: number; url: string; sizeFormatted: string }[]>([]);
 
   useEffect(() => {
     // URL'den zip parametresini kontrol et
@@ -112,19 +113,23 @@ export default function DownloadPage() {
         setZipping(false);
         setZipProgress({ current: 0, total: 0, phase: '' });
         setZipReady({ url: data.downloadUrl, filename: data.filename });
+        setZipParts([]);
 
-        // URL'e zip parametresi ekle (paylaşılabilir)
-        const url = new URL(window.location.href);
-        url.searchParams.set('zip', data.downloadUrl);
-        window.history.replaceState({}, '', url.toString());
-
-        // 9 dakika sonra butonu sıfırla (temp dosya 10 dk'da silinir)
+        // 29 dakika sonra sıfırla (temp dosya 30 dk'da silinir)
         setTimeout(() => {
           setZipReady(null);
-          const cleanUrl = new URL(window.location.href);
-          cleanUrl.searchParams.delete('zip');
-          window.history.replaceState({}, '', cleanUrl.toString());
-        }, 9 * 60 * 1000);
+        }, 29 * 60 * 1000);
+      } else if (data.type === 'complete_multipart') {
+        eventSource.close();
+        setZipping(false);
+        setZipProgress({ current: 0, total: 0, phase: '' });
+        setZipParts(data.parts);
+        setZipReady(null);
+
+        // 29 dakika sonra sıfırla
+        setTimeout(() => {
+          setZipParts([]);
+        }, 29 * 60 * 1000);
       } else if (data.type === 'error') {
         alert(data.message);
         eventSource.close();
@@ -191,11 +196,32 @@ export default function DownloadPage() {
             : 'Tek Tek İndir'}
         </button>
 
-        {zipReady ? (
+        {zipParts.length > 0 ? (
+          // Çoklu parça butonları
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {zipParts.map((part) => (
+              <button
+                key={part.partNumber}
+                onClick={() => window.location.href = part.url}
+                style={{
+                  padding: '12px 16px',
+                  backgroundColor: '#0f0',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                }}
+              >
+                Parça {part.partNumber} ({part.sizeFormatted})
+              </button>
+            ))}
+          </div>
+        ) : zipReady ? (
           <button
             onClick={() => {
               window.location.href = zipReady.url;
-              setZipReady(null);
             }}
             style={{
               flex: 1,
@@ -229,7 +255,7 @@ export default function DownloadPage() {
           >
             {zipping
               ? zipProgress.total > 0
-                ? `${zipProgress.current}/${zipProgress.total} ${zipProgress.phase === 'finalizing' ? '(Sıkıştırılıyor)' : ''}`
+                ? `${zipProgress.current}/${zipProgress.total} ${zipProgress.phase === 'saving_part' ? `(Parça ${zipProgress.phase})` : zipProgress.phase === 'finalizing' ? '(Sıkıştırılıyor)' : ''}`
                 : 'Başlıyor...'
               : 'ZIP Hazırla'}
           </button>

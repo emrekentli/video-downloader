@@ -6,6 +6,20 @@ import fs from 'fs';
 
 export const dynamic = 'force-dynamic';
 
+const MAX_PART_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
+
+interface VideoItem {
+  url: string;
+  filename: string;
+}
+
+interface PartInfo {
+  partNumber: number;
+  fileId: string;
+  url: string;
+  size: number;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -26,7 +40,6 @@ export async function GET(
     );
   }
 
-  // Eski zip'leri temizle
   cleanupOldZips();
 
   const encoder = new TextEncoder();
@@ -40,14 +53,12 @@ export async function GET(
 
       sendEvent({ type: 'start', total });
 
-      // Zip dosyası oluştur
-      const { filePath, fileId } = createZipPath(id);
-      const output = fs.createWriteStream(filePath);
-      const archive = archiver('zip', { zlib: { level: 5 } });
+      const parts: PartInfo[] = [];
+      let currentPartNumber = 1;
+      let currentPartSize = 0;
+      let currentPartVideos: { index: number; item: VideoItem; buffer: Buffer; fileName: string }[] = [];
 
-      archive.pipe(output);
-
-      // Videoları indir ve zip'e ekle
+      // Tüm videoları indir ve boyutlarını öğren
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         sendEvent({
@@ -65,22 +76,26 @@ export async function GET(
             const baseName = item.filename.replace(/\.[^/.]+$/, '');
             const fileName = `${String(i + 1).padStart(2, '0')}_${baseName}.${ext}`;
 
-            const { Readable } = await import('stream');
-            const nodeStream = Readable.fromWeb(response.body as any);
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            const videoSize = buffer.length;
 
-            await new Promise<void>((resolve, reject) => {
-              let resolved = false;
-              const done = () => {
-                if (!resolved) {
-                  resolved = true;
-                  resolve();
-                }
-              };
-              nodeStream.on('end', done);
-              nodeStream.on('close', done);
-              nodeStream.on('error', reject);
-              archive.append(nodeStream, { name: fileName });
-            });
+            // Bu video mevcut parçaya sığar mı?
+            if (currentPartSize + videoSize > MAX_PART_SIZE && currentPartVideos.length > 0) {
+              // Mevcut parçayı kaydet
+              sendEvent({ type: 'progress', current: i + 1, total, phase: 'saving_part', partNumber: currentPartNumber });
+              const partInfo = await savePartZip(id, currentPartNumber, currentPartVideos);
+              parts.push(partInfo);
+
+              // Yeni parça başlat
+              currentPartNumber++;
+              currentPartSize = 0;
+              currentPartVideos = [];
+            }
+
+            // Videoyu mevcut parçaya ekle
+            currentPartVideos.push({ index: i, item, buffer, fileName });
+            currentPartSize += videoSize;
 
             sendEvent({
               type: 'progress',
@@ -100,24 +115,36 @@ export async function GET(
         }
       }
 
+      // Son parçayı kaydet
+      if (currentPartVideos.length > 0) {
+        sendEvent({ type: 'progress', current: total, total, phase: 'saving_part', partNumber: currentPartNumber });
+        const partInfo = await savePartZip(id, currentPartNumber, currentPartVideos);
+        parts.push(partInfo);
+      }
+
       sendEvent({ type: 'progress', current: total, total, phase: 'finalizing' });
 
-      // Archive'ı bitir
-      await new Promise<void>((resolve, reject) => {
-        output.on('close', resolve);
-        output.on('error', reject);
-        archive.finalize();
-      });
-
-      // Static URL ver
-      const downloadUrl = getZipUrl(fileId);
-      console.log(`[zip] Created: ${filePath}, URL: ${downloadUrl}`);
-
-      sendEvent({
-        type: 'complete',
-        downloadUrl,
-        filename: `videos_${id}.zip`
-      });
+      // Sonucu gönder
+      if (parts.length === 1) {
+        // Tek parça - eskisi gibi
+        sendEvent({
+          type: 'complete',
+          downloadUrl: parts[0].url,
+          filename: `videos_${id}.zip`
+        });
+      } else {
+        // Çoklu parça
+        sendEvent({
+          type: 'complete_multipart',
+          parts: parts.map(p => ({
+            partNumber: p.partNumber,
+            url: p.url,
+            size: p.size,
+            sizeFormatted: formatSize(p.size)
+          })),
+          totalParts: parts.length
+        });
+      }
 
       controller.close();
     },
@@ -130,4 +157,42 @@ export async function GET(
       'Connection': 'keep-alive',
     },
   });
+}
+
+async function savePartZip(
+  collectionId: string,
+  partNumber: number,
+  videos: { index: number; item: VideoItem; buffer: Buffer; fileName: string }[]
+): Promise<PartInfo> {
+  const { filePath, fileId } = createZipPath(`${collectionId}_part${partNumber}`);
+  const output = fs.createWriteStream(filePath);
+  const archive = archiver('zip', { zlib: { level: 5 } });
+
+  archive.pipe(output);
+
+  for (const video of videos) {
+    archive.append(video.buffer, { name: video.fileName });
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    output.on('close', resolve);
+    output.on('error', reject);
+    archive.finalize();
+  });
+
+  const stats = fs.statSync(filePath);
+
+  return {
+    partNumber,
+    fileId,
+    url: getZipUrl(fileId),
+    size: stats.size
+  };
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
 }

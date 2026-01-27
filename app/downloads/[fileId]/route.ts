@@ -48,7 +48,9 @@ export async function GET(
         'Content-Type': 'application/zip',
         'Content-Length': stats.size.toString(),
         'Content-Disposition': `attachment; filename="${fileId}"`,
+        'Accept-Ranges': 'bytes',
         'Cache-Control': 'no-store',
+        'X-Content-Length': stats.size.toString(),
       },
     });
   } catch (error: any) {
