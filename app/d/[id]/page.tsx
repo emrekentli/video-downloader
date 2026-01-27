@@ -18,6 +18,7 @@ export default function DownloadPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [zipping, setZipping] = useState(false);
   const [zipProgress, setZipProgress] = useState({ current: 0, total: 0, phase: '' });
+  const [zipReady, setZipReady] = useState<{ url: string; filename: string } | null>(null);
 
   useEffect(() => {
     const fetchLinks = async () => {
@@ -100,17 +101,10 @@ export default function DownloadPage() {
           phase: data.phase || 'downloading'
         });
       } else if (data.type === 'complete') {
-        // Download URL'i ile indir
-        const a = document.createElement('a');
-        a.href = data.downloadUrl;
-        a.download = data.filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-
         eventSource.close();
         setZipping(false);
         setZipProgress({ current: 0, total: 0, phase: '' });
+        setZipReady({ url: data.downloadUrl, filename: data.filename });
       } else if (data.type === 'error') {
         alert(data.message);
         eventSource.close();
@@ -177,27 +171,49 @@ export default function DownloadPage() {
             : 'Tek Tek İndir'}
         </button>
 
-        <button
-          onClick={downloadZip}
-          disabled={downloading || zipping}
-          style={{
-            flex: 1,
-            padding: '16px',
-            backgroundColor: zipping ? '#333' : '#0070f3',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '12px',
-            fontSize: '16px',
-            fontWeight: '700',
-            cursor: zipping ? 'wait' : 'pointer',
-          }}
-        >
-          {zipping
-            ? zipProgress.total > 0
-              ? `${zipProgress.current}/${zipProgress.total} ${zipProgress.phase === 'finalizing' ? '(Sıkıştırılıyor)' : ''}`
-              : 'Başlıyor...'
-            : 'ZIP İndir'}
-        </button>
+        {zipReady ? (
+          <button
+            onClick={() => {
+              window.location.href = zipReady.url;
+              setZipReady(null);
+            }}
+            style={{
+              flex: 1,
+              padding: '16px',
+              backgroundColor: '#0f0',
+              color: '#000',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '16px',
+              fontWeight: '700',
+              cursor: 'pointer',
+            }}
+          >
+            ZIP İndir
+          </button>
+        ) : (
+          <button
+            onClick={downloadZip}
+            disabled={downloading || zipping}
+            style={{
+              flex: 1,
+              padding: '16px',
+              backgroundColor: zipping ? '#333' : '#0070f3',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '16px',
+              fontWeight: '700',
+              cursor: zipping ? 'wait' : 'pointer',
+            }}
+          >
+            {zipping
+              ? zipProgress.total > 0
+                ? `${zipProgress.current}/${zipProgress.total} ${zipProgress.phase === 'finalizing' ? '(Sıkıştırılıyor)' : ''}`
+                : 'Başlıyor...'
+              : 'ZIP Hazırla'}
+          </button>
+        )}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
