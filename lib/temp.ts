@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { randomBytes } from 'crypto';
 
-const TEMP_DIR = path.join(process.cwd(), '.temp-zips');
+const TEMP_DIR = path.join(os.tmpdir(), 'video-zips');
 const MAX_AGE_MS = 10 * 60 * 1000; // 10 dakika
 
 // Temp klasörünü oluştur
