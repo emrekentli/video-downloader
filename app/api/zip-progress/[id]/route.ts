@@ -72,7 +72,15 @@ export async function GET(
             const nodeStream = Readable.fromWeb(response.body as any);
 
             await new Promise<void>((resolve, reject) => {
-              nodeStream.on('end', resolve);
+              let resolved = false;
+              const done = () => {
+                if (!resolved) {
+                  resolved = true;
+                  resolve();
+                }
+              };
+              nodeStream.on('end', done);
+              nodeStream.on('close', done);
               nodeStream.on('error', reject);
               archive.append(nodeStream, { name: fileName });
             });
@@ -106,6 +114,10 @@ export async function GET(
 
       // Download URL'i gönder
       const fileId = getFileIdFromPath(tempPath);
+      const fileExists = fs.existsSync(tempPath);
+      const fileSize = fileExists ? fs.statSync(tempPath).size : 0;
+      console.log(`[zip-progress] Zip created: ${tempPath}, exists: ${fileExists}, size: ${fileSize}`);
+
       sendEvent({
         type: 'complete',
         downloadUrl: `/api/zip-download/${fileId}`,

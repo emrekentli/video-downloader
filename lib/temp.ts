@@ -23,6 +23,7 @@ export function createTempPath(prefix: string): string {
 // Dosya ID'sinden path'i al
 export function getTempPath(fileId: string): string | null {
   const filePath = path.join(TEMP_DIR, `${fileId}.zip`);
+  console.log(`[temp] Looking for: ${filePath}, exists: ${fs.existsSync(filePath)}`);
   if (fs.existsSync(filePath)) {
     return filePath;
   }
