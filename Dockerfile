@@ -1,38 +1,28 @@
-FROM node:20-alpine AS base
+FROM golang:1.22-alpine AS builder
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-FROM base AS deps
-WORKDIR /app
-COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile || pnpm install
-
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN pnpm run build
-
-FROM node:20-alpine AS runner
 WORKDIR /app
 
-ENV NODE_ENV=production
-ENV DATABASE_PATH=/app/data/data.db
+# CGO için gerekli (SQLite)
+RUN apk add --no-cache gcc musl-dev
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+COPY go.mod go.sum ./
+RUN go mod download
 
-RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
+COPY *.go ./
+RUN CGO_ENABLED=1 GOOS=linux go build -o video-zip-service .
 
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-RUN mkdir -p /app/public/downloads && chown -R nextjs:nodejs /app/public/downloads
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+FROM alpine:latest
 
-USER nextjs
+WORKDIR /app
+
+# SSL sertifikaları (HTTPS istekleri için)
+RUN apk add --no-cache ca-certificates
+
+COPY --from=builder /app/video-zip-service .
+COPY static ./static
+
+RUN mkdir -p downloads
 
 EXPOSE 3000
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["./video-zip-service"]

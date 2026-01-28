@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Downloader</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    textarea {
+      width: 100%;
+      height: 200px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      color: #fff;
+      padding: 16px;
+      font-size: 14px;
+      resize: vertical;
+      margin-bottom: 16px;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: #0070f3;
+    }
+    button {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.9; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary {
+      background: #0070f3;
+      color: #fff;
+    }
+    .btn-success {
+      background: #0f0;
+      color: #000;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 16px;
+      background: #1a1a1a;
+      border-radius: 12px;
+      text-align: center;
+    }
+    .result a {
+      color: #0070f3;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Video Downloader</h1>
+
+    <textarea id="links" placeholder="Video linklerini yapıştırın (her satıra bir link)..."></textarea>
+
+    <button id="submitBtn" class="btn-primary" onclick="submitLinks()">
+      Oluştur
+    </button>
+
+    <div id="result" class="result hidden"></div>
+  </div>
+
+  <script>
+    async function submitLinks() {
+      const textarea = document.getElementById('links');
+      const btn = document.getElementById('submitBtn');
+      const result = document.getElementById('result');
+
+      const lines = textarea.value.trim().split('\n').filter(l => l.trim());
+      if (lines.length === 0) {
+        alert('En az bir link girin');
+        return;
+      }
+
+      // URL ve filename çıkar
+      const items = lines.map(line => {
+        const url = line.trim();
+        const filename = url.split('/').pop().split('?')[0] || 'video.mp4';
+        return { url, filename };
+      });
+
+      btn.disabled = true;
+      btn.textContent = 'Oluşturuluyor...';
+
+      try {
+        const res = await fetch('/api/collection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          result.classList.remove('hidden');
+          result.innerHTML = `
+            <p>Koleksiyon oluşturuldu!</p>
+            <p><a href="/d/${data.id}" target="_blank">İndirme Sayfası</a></p>
+          `;
+          textarea.value = '';
+        } else {
+          alert(data.error || 'Bir hata oluştu');
+        }
+      } catch (err) {
+        alert('Bağlantı hatası');
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Oluştur';
+    }
+  </script>
+</body>
+</html>
