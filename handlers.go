@@ -2,7 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -48,6 +50,31 @@ func GetCollection(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(collection)
+}
+
+func ServeDownload(c *fiber.Ctx) error {
+	filename := c.Params("filename")
+
+	// Güvenlik: path traversal engelle
+	if strings.Contains(filename, "..") || strings.Contains(filename, "/") {
+		return c.Status(400).JSON(fiber.Map{"error": "Geçersiz dosya"})
+	}
+
+	filepath := "./downloads/" + filename
+
+	// Dosya var mı kontrol et
+	stat, err := os.Stat(filepath)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Dosya bulunamadı"})
+	}
+
+	// Header'ları ayarla
+	c.Set("Content-Type", "application/zip")
+	c.Set("Content-Length", fmt.Sprintf("%d", stat.Size()))
+	c.Set("Content-Disposition", "attachment; filename=\""+filename+"\"")
+	c.Set("Accept-Ranges", "bytes")
+
+	return c.SendFile(filepath)
 }
 
 func ProxyDownload(c *fiber.Ctx) error {

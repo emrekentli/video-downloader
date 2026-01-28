@@ -40,7 +40,9 @@ func main() {
 
 	// Static dosyalar
 	app.Static("/", "./static")
-	app.Static("/downloads", "./downloads")
+
+	// Downloads - özel handler (Content-Length için)
+	app.Get("/downloads/:filename", ServeDownload)
 
 	// API routes
 	api := app.Group("/api")
