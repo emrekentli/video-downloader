@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -55,6 +56,8 @@ func GetCollection(c *fiber.Ctx) error {
 func ServeDownload(c *fiber.Ctx) error {
 	filename := c.Params("filename")
 
+	log.Printf("[download] Request for: %s", filename)
+
 	// Güvenlik: path traversal engelle
 	if strings.Contains(filename, "..") || strings.Contains(filename, "/") {
 		return c.Status(400).JSON(fiber.Map{"error": "Geçersiz dosya"})
@@ -65,7 +68,13 @@ func ServeDownload(c *fiber.Ctx) error {
 	// Dosya var mı kontrol et
 	stat, err := os.Stat(filePath)
 	if err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Dosya bulunamadı"})
+		log.Printf("[download] File not found: %s", filePath)
+		// Downloads klasöründeki dosyaları listele
+		files, _ := os.ReadDir("./downloads")
+		for _, f := range files {
+			log.Printf("[download] Available: %s", f.Name())
+		}
+		return c.Status(404).JSON(fiber.Map{"error": "Dosya bulunamadı", "requested": filename})
 	}
 
 	size := stat.Size()
