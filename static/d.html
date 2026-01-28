@@ -75,6 +75,16 @@
       cursor: pointer;
       text-align: center;
     }
+    .copy-btn {
+      padding: 8px 12px;
+      background: #333;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      margin-top: 4px;
+    }
     .loading { text-align: center; padding: 40px; }
     .error { text-align: center; padding: 40px; color: #f00; }
   </style>
@@ -119,6 +129,7 @@
               <button class="part-btn" onclick="window.location.href='${p.url}'">
                 Parça ${p.partNumber} (${p.sizeFormatted})
               </button>
+              <button class="copy-btn" onclick="copyLink('${p.url}')">Link Kopyala</button>
             `).join('')}
           </div>
         `;
@@ -126,6 +137,9 @@
         buttonsHTML = `
           <button class="btn-green" onclick="window.location.href='${zipReady.url}'">
             ZIP İndir
+          </button>
+          <button class="btn-blue" onclick="copyLink('${zipReady.url}')">
+            Link Kopyala
           </button>
         `;
       } else {
@@ -207,6 +221,15 @@
         eventSource.close();
         render();
       };
+    }
+
+    function copyLink(path) {
+      const fullUrl = window.location.origin + path;
+      navigator.clipboard.writeText(fullUrl).then(() => {
+        alert('Link kopyalandı!');
+      }).catch(() => {
+        prompt('Linki kopyala:', fullUrl);
+      });
     }
 
     init();
