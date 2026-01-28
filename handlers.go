@@ -60,21 +60,26 @@ func ServeDownload(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Geçersiz dosya"})
 	}
 
-	filepath := "./downloads/" + filename
+	filePath := "./downloads/" + filename
 
 	// Dosya var mı kontrol et
-	stat, err := os.Stat(filepath)
+	stat, err := os.Stat(filePath)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Dosya bulunamadı"})
 	}
 
-	// Header'ları ayarla
-	c.Set("Content-Type", "application/zip")
-	c.Set("Content-Length", fmt.Sprintf("%d", stat.Size()))
-	c.Set("Content-Disposition", "attachment; filename=\""+filename+"\"")
-	c.Set("Accept-Ranges", "bytes")
+	size := stat.Size()
 
-	return c.SendFile(filepath)
+	// Tüm header'ları ayarla
+	c.Response().Header.Set("Content-Type", "application/zip")
+	c.Response().Header.Set("Content-Length", fmt.Sprintf("%d", size))
+	c.Response().Header.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	c.Response().Header.Set("Accept-Ranges", "bytes")
+	c.Response().Header.Set("Cache-Control", "no-store, no-cache, must-revalidate")
+	c.Response().Header.Set("X-Content-Length", fmt.Sprintf("%d", size))
+
+	// SendFile kullan - ama header'lar zaten set edildi
+	return c.SendFile(filePath, false)
 }
 
 func ProxyDownload(c *fiber.Ctx) error {
