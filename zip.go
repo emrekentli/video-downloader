@@ -17,7 +17,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const MaxPartSize = 1800 * 1024 * 1024 // 1.8GB
+const MaxPartSize = 100 * 1024 * 1024 * 1024 // 100GB (pratik olarak sınırsız)
 
 type ProgressEvent struct {
 	Type       string `json:"type"`

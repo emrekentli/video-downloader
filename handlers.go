@@ -65,26 +65,22 @@ func ServeDownload(c *fiber.Ctx) error {
 
 	filePath := "./downloads/" + filename
 
-	// Dosyayı oku
-	data, err := os.ReadFile(filePath)
+	// Dosya var mı kontrol et
+	stat, err := os.Stat(filePath)
 	if err != nil {
 		log.Printf("[download] File not found: %s", filePath)
-		files, _ := os.ReadDir("./downloads")
-		for _, f := range files {
-			log.Printf("[download] Available: %s", f.Name())
-		}
-		return c.Status(404).JSON(fiber.Map{"error": "Dosya bulunamadı", "requested": filename})
+		return c.Status(404).JSON(fiber.Map{"error": "Dosya bulunamadı"})
 	}
 
-	log.Printf("[download] Sending file: %s, size: %d bytes", filename, len(data))
+	log.Printf("[download] Sending file: %s, size: %d bytes", filename, stat.Size())
 
 	// Header'ları ayarla
 	c.Set("Content-Type", "application/zip")
-	c.Set("Content-Length", fmt.Sprintf("%d", len(data)))
+	c.Set("Content-Length", fmt.Sprintf("%d", stat.Size()))
 	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 
-	// Dosyayı gönder (stream yok, komple)
-	return c.Send(data)
+	// Stream olarak gönder
+	return c.SendFile(filePath, false)
 }
 
 func ProxyDownload(c *fiber.Ctx) error {
